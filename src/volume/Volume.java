@@ -21,11 +21,20 @@ public class Volume {
     //This function linearly interpolates the value g0 and g1 given the factor (t) 
     //the result is returned. You can use it to tri-linearly interpolate the values 
 	private float interpolate(float g0, float g1, float factor) {
-        float result=0;
+        float result;
         // to be implemented
+        result = (g0*(1-factor)) + (g1*factor);
+        
         return result; 
     }
 	
+        private float[] vectorInterpolate(float[] c1, float[] c2, float factor){
+            float [] cnew = new float [3];
+            for(int i =0; i<c1.length; i++){
+                cnew[i]= interpolate(c1[i],c2[i],factor);
+            }
+            return cnew;
+        }
 	//You have to implement the trilinear interpolation of the volume
 	//First implement the interpolated function above
         // At the moment the function does takes just the lowest voxel value
@@ -36,13 +45,48 @@ public class Volume {
             return 0;
         }
         /* notice that in this framework we assume that the distance between neighbouring voxels is 1 in all directions*/
-        int x = (int) Math.floor(coord[0]); 
-        int y = (int) Math.floor(coord[1]);
-        int z = (int) Math.floor(coord[2]);
+        float x = (float)coord[0]; 
+        float y = (float)coord[1];
+        float z = (float)coord[2];
         
+        float x0 = (float) Math.floor(x);
+        float y0 = (float) Math.floor(y);
+        float z0 = (float) Math.floor(z);
+        float x1 = (float) Math.ceil(x);
+        float y1 = (float) Math.ceil(y);
+        float z1 = (float) Math.ceil(z);
+        
+        float xfactor = (x-x0)/(x1-x0);
+        float yfactor = (y-y0)/(y1-y0);
+        float zfactor = (z-z0)/(z1-z0);
+        
+        float [] c000 ={x0,y0,z0};
+        float [] c001 ={x0,y0,z1};
+        float [] c010 ={x0,y1,z0};
+        float [] c011 ={x0,y1,z1};
+        float [] c100 ={x1,y0,z0};
+        float [] c101 ={x1,y0,z1};
+        float [] c110 ={x1,y1,z0};
+        float [] c111 ={x1,y1,z1};
+        
+        float [] c00= vectorInterpolate(c000,c100,xfactor);
+        float [] c01= vectorInterpolate(c001,c101,xfactor);
+        float [] c10= vectorInterpolate(c010,c110,xfactor);
+        float [] c11= vectorInterpolate(c011,c111,xfactor);
+        
+        float [] c0= vectorInterpolate(c00,c10,yfactor);
+        float [] c1= vectorInterpolate(c01,c11,yfactor);
+        
+        float [] c = vectorInterpolate(c0,c1,zfactor);
+        
+        x= c[0];
+        y= c[1];
+        z= c[2];
         // To be implemented
+        
+        
             
-        return getVoxel(x,y,z); 
+        return getVoxel((int)x,(int)y,(int)z); 
     }
 		
 	//////////////////////////////////////////////////////////////////////
@@ -80,6 +124,9 @@ public class Volume {
             dimY = reader.getYDim();
             dimZ = reader.getZDim();
             data = reader.getData().clone();
+            System.out.println(dimX +" " + dimY+ " " + dimZ);
+            System.out.println(data.length);
+            System.out.println(data[35252]);
             computeHistogram();
         } catch (IOException ex) {
             System.out.println("IO exception");
@@ -157,6 +204,6 @@ public class Volume {
     
 	//Do NOT modify these attributes
     private int dimX, dimY, dimZ;
-    private short[] data;
+    short[] data;
     private int[] histogram;
 }

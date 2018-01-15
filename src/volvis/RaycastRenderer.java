@@ -62,16 +62,18 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 	        for (int i = 0; i < image.getWidth(); i++) {
 	        	//pixelCoord now contains the 3D coordinates for pixel (i,j)
 	        	computePixelCoordinates(pixelCoord,volumeCenter,uVec,vVec,i,j);
+                        
+                        //System.out.println(pixelCoord[0] + " " +pixelCoord[1] + " " +pixelCoord[2]);
 		            
 	            //pixelCoord now contains the 3D coordinates of the pixels (i,j)
 	            //we now have to get the value for the in the 3D volume for the pixel
 	            //we can use a nearest neighbor implementation like this:
-	            int val = volume.getVoxelNN(pixelCoord);
+	            //int val = volume.getVoxelNN(pixelCoord);
 
 	            		
 	            //you have to implement the function getVoxelLinearInterpolated in Volume.java
 	            //in order to complete the assignment
-	            //int val = volume.getVoxelLinearInterpolate(pixelCoord); //and then use this line
+	            int val = volume.getVoxelLinearInterpolate(pixelCoord); //and then use this line
 	            
 	            
 	            // Map the intensity to a grey value by linear scaling
@@ -83,11 +85,13 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 	               voxelColor.a = val > 0 ? 1.0 : 0.0;   
                        
 	            // Alternatively, apply the transfer function to obtain a color using the tFunc attribute
-	            //colorAux== tFunc.getColor(val);
+	            //colorAux= tFunc.getColor(val);
                     //voxelColor.r=colorAux.r;voxelColor.g=colorAux.g;voxelColor.b=colorAux.b;voxelColor.a=colorAux.a; 
                     // You can also simply use voxelColor = tFunc.getColor(val); However then you copy by reference and this means that if you change 
                     // voxelColor you will be actually changing the transfer function
-	            
+	            //voxelColor = tFunc.getColor(val);
+                    
+                    
 	            //BufferedImage expects a pixel color packed as ARGB in an int
 	            //use the function computeImageColor to convert your double color in the range 0-1 to the format need by the image
 	            int pixelColor = computeImageColor(voxelColor.r,voxelColor.g,voxelColor.b,voxelColor.a);
