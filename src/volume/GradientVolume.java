@@ -110,15 +110,16 @@ public class GradientVolume {
         
         VoxelGradient c = interpolate(c0,c1,zfactor);
         
-        x= c.x;
-        y= c.y;
-        z= c.z;
+        //x= c.x;
+        //y= c.y;
+        //z= c.z;
 
         //int x = (int) Math.floor(coord[0]);
         //int y = (int) Math.floor(coord[1]);
         //int z = (int) Math.floor(coord[2]);
-        
-        return getGradient((int)x, (int)y, (int)z);
+        //System.out.println(getGradient((int)x, (int)y, (int)z).mag);
+        //return getGradient((int)x, (int)y, (int)z);
+        return c;
         // To be impmented right now it impments just a nearest neighbour
     }
     

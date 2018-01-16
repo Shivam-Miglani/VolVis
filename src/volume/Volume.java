@@ -49,44 +49,42 @@ public class Volume {
         float y = (float)coord[1];
         float z = (float)coord[2];
         
-        float x0 = (float) Math.floor(x);
-        float y0 = (float) Math.floor(y);
-        float z0 = (float) Math.floor(z);
-        float x1 = (float) Math.ceil(x);
-        float y1 = (float) Math.ceil(y);
-        float z1 = (float) Math.ceil(z);
+        int x0 =  (int) Math.floor(x);
+        int y0 =  (int) Math.floor(y);
+        int z0 =  (int) Math.floor(z);
+        int x1 =  (int) Math.ceil(x);
+        int y1 =  (int) Math.ceil(y);
+        int z1 =  (int) Math.ceil(z);
         
         float xfactor = (x-x0)/(x1-x0);
         float yfactor = (y-y0)/(y1-y0);
         float zfactor = (z-z0)/(z1-z0);
         
-        float [] c000 ={x0,y0,z0};
-        float [] c001 ={x0,y0,z1};
-        float [] c010 ={x0,y1,z0};
-        float [] c011 ={x0,y1,z1};
-        float [] c100 ={x1,y0,z0};
-        float [] c101 ={x1,y0,z1};
-        float [] c110 ={x1,y1,z0};
-        float [] c111 ={x1,y1,z1};
+//        float [] c000 ={x0,y0,z0};
+//        float [] c001 ={x0,y0,z1};
+//        float [] c010 ={x0,y1,z0};
+//        float [] c011 ={x0,y1,z1};
+//        float [] c100 ={x1,y0,z0};
+//        float [] c101 ={x1,y0,z1};
+//        float [] c110 ={x1,y1,z0};
+//        float [] c111 ={x1,y1,z1};
         
-        float [] c00= vectorInterpolate(c000,c100,xfactor);
-        float [] c01= vectorInterpolate(c001,c101,xfactor);
-        float [] c10= vectorInterpolate(c010,c110,xfactor);
-        float [] c11= vectorInterpolate(c011,c111,xfactor);
+        float c00= interpolate(data[x0 + dimX*(y0 + dimY * z0)], data[(x1) + dimX*(y0 + dimY * z0)], xfactor);
+        float c01= interpolate(data[x0 + dimX*(y0 + dimY * z1)], data[(x1) + dimX*(y0 + dimY * z1)], xfactor);
+        float c10= interpolate(data[x0 + dimX*(y1 + dimY * z0)], data[(x1) + dimX*(y1 + dimY * z0)], xfactor);
+        float c11= interpolate(data[x0 + dimX*(y1 + dimY * z1)], data[(x1) + dimX*(y1 + dimY * z1)], xfactor);
         
-        float [] c0= vectorInterpolate(c00,c10,yfactor);
-        float [] c1= vectorInterpolate(c01,c11,yfactor);
+        float c0= interpolate(c00, c10, yfactor);
+        float c1= interpolate(c01, c11, yfactor);
         
-        float [] c = vectorInterpolate(c0,c1,zfactor);
+        float c = interpolate(c0,c1,zfactor);
         
-        x= c[0];
-        y= c[1];
-        z= c[2];
+       
         // To be implemented
         
         
-            
-        return getVoxel((int)x,(int)y,(int)z); 
+        //System.out.println((short)c);
+        return (short) c; 
     }
 		
 	//////////////////////////////////////////////////////////////////////
