@@ -105,17 +105,49 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     //Implementation of the MIP per ray  given the entry and exit point and the ray direction
     // sampleStep indicates the distance between samples
     // To be implemented
-    int traceRayMIP(double[] entryPoint, double[] exitPoint, double[] rayVector, double sampleStep) {
+    int traceRayMIP(double[] entryPoint, double[] exitPoint, double[] rayVector, double sampleStep, double maxIntensity) {
     	//Hint: compute the increment and the number of samples you need and iterate over them.
                 
         //You need to iterate through the ray. Starting at the entry point.
  
         // Example color, you have to substitute it by the result of the MIP 
-        double r=1;
+        double r=0;
         double g=0;
         double b=0;
         double alpha=1;
-                
+        double accumulate = 0;
+        double val = 0;
+        double [] increment = new double [3];
+        increment[0]= rayVector[0]*sampleStep;
+        increment[1]= rayVector[1]*sampleStep;
+        increment[2]= rayVector[2]*sampleStep;
+        double [] temp = {entryPoint[0]-exitPoint[0], entryPoint[1]-exitPoint[1], entryPoint[2]-exitPoint[2]};
+        
+        double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
+        
+        int nSamples = (int) (distance/sampleStep);
+        
+        double [] position = {entryPoint[0], entryPoint[1], entryPoint[2]};
+        
+        for (int q = 0; q<=nSamples; q++ ){
+            val = volume.getVoxelLinearInterpolate(position)/maxIntensity;
+            //System.out.println(val);
+            if(val> accumulate){
+                accumulate= val;
+            }
+            for (int s =0; s<3; s++){
+                position[s]= position[s]+increment[s];
+            }
+        }
+        
+        if(accumulate<=0){
+            alpha=0;
+        }
+        else {
+            alpha=1;
+        }
+        
+        r= g = b= accumulate;       
         int color = computeImageColor(r,g,b,alpha);
         return color;
     }
@@ -151,6 +183,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         double[] pixelCoord = new double[3];
         double[] entryPoint = new double[3];
         double[] exitPoint = new double[3];
+        double maxIntensity = (double)volume.getMaximum();
 
         // ray parameters
         int increment = 1;
@@ -180,7 +213,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                     if (compositingMode || tf2dMode) {
                         val = traceRayComposite(entryPoint, exitPoint, rayVector, sampleStep);
                     } else if (mipMode) {
-                        val = traceRayMIP(entryPoint, exitPoint, rayVector, sampleStep);
+                        val = traceRayMIP(entryPoint, exitPoint, rayVector, sampleStep, maxIntensity);
                     }
                     for (int ii = i; ii < i + increment; ii++) {
                         for (int jj = j; jj < j + increment; jj++) {
