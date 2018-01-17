@@ -197,6 +197,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                 voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
                 opacity = voxel_color.a;    
             }
+            //I added these after referring to the solution (Let's discuss if it is important)
             if (tf2dMode) {
                 colorAux = tFunc2D.color;
                 voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
