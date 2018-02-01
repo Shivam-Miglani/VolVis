@@ -85,8 +85,8 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 	               voxelColor.a = val > 0 ? 1.0 : 0.0;   
                        
 	            // Alternatively, apply the transfer function to obtain a color using the tFunc attribute
-	            //colorAux= tFunc.getColor(val);
-                    //voxelColor.r=colorAux.r;voxelColor.g=colorAux.g;voxelColor.b=colorAux.b;voxelColor.a=colorAux.a; 
+	            colorAux= tFunc.getColor(val);
+                    voxelColor.r=colorAux.r;voxelColor.g=colorAux.g;voxelColor.b=colorAux.b;//voxelColor.a=colorAux.a; 
                     // You can also simply use voxelColor = tFunc.getColor(val); However then you copy by reference and this means that if you change 
                     // voxelColor you will be actually changing the transfer function
 	            //voxelColor = tFunc.getColor(val);

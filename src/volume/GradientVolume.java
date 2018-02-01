@@ -76,39 +76,63 @@ public class GradientVolume {
             return zero;
         }
         
-        float x = (float)coord[0]; 
-        float y = (float)coord[1];
-        float z = (float)coord[2];
+        float x = (float)Math.floor(coord[0]); 
+        float y = (float) Math.floor(coord[1]);
+        float z = (float)Math.floor(coord[2]);
         
-        float x0 = (float) Math.floor(x);
-        float y0 = (float) Math.floor(y);
-        float z0 = (float) Math.floor(z);
-        float x1 = (float) Math.ceil(x);
-        float y1 = (float) Math.ceil(y);
-        float z1 = (float) Math.ceil(z);
+        //float x = (float)coord[0]; 
+        //float y = (float)coord[1];
+        //float z = (float)coord[2];
         
-        float xfactor = (x-x0)/(x1-x0);
-        float yfactor = (y-y0)/(y1-y0);
-        float zfactor = (z-z0)/(z1-z0);
+//        float x0 = (float) Math.floor(x);
+//        float y0 = (float) Math.floor(y);
+//        float z0 = (float) Math.floor(z);
+//        float x1 = (float) Math.ceil(x);
+//        float y1 = (float) Math.ceil(y);
+//        float z1 = (float) Math.ceil(z);
         
-        VoxelGradient c000 = new VoxelGradient (x0,y0,z0);
-        VoxelGradient c001 = new VoxelGradient (x0,y0,z1);
-        VoxelGradient c010 = new VoxelGradient (x0,y1,z0);
-        VoxelGradient c011 = new VoxelGradient (x0,y1,z1);
-        VoxelGradient c100 = new VoxelGradient (x1,y0,z0);
-        VoxelGradient c101 = new VoxelGradient (x1,y0,z1);
-        VoxelGradient c110 = new VoxelGradient (x1,y1,z0);
-        VoxelGradient c111 = new VoxelGradient (x1,y1,z1);
+        float xfactor = (float) ((coord[0]-x)/((x+1)-x));
+        float yfactor = (float) ((coord[1]-y)/((y+1)-y));
+        float zfactor = (float) ((coord[2]-z)/((z+1)-z));
+
+        //float xfactor = (x-x0)/(x1-x0);
+        //float yfactor = (y-y0)/(y1-y0);
+        //float zfactor = (z-z0)/(z1-z0);
         
-        VoxelGradient c00= interpolate(c000,c100,xfactor);
-        VoxelGradient c01= interpolate(c001,c101,xfactor);
-        VoxelGradient c10= interpolate(c010,c110,xfactor);
-        VoxelGradient c11= interpolate(c011,c111,xfactor);
+        VoxelGradient c000 = new VoxelGradient (x,y,z);
+        VoxelGradient c001 = new VoxelGradient (x,y,z+1);
+        VoxelGradient c010 = new VoxelGradient (x,y+1,z);
+        VoxelGradient c011 = new VoxelGradient (x,y+1,z+1);
+        VoxelGradient c100 = new VoxelGradient (x+1,y,z);
+        VoxelGradient c101 = new VoxelGradient (x+1,y,z+1);
+        VoxelGradient c110 = new VoxelGradient (x+1,y+1,z);
+        VoxelGradient c111 = new VoxelGradient (x+1,y+1,z+1);
         
-        VoxelGradient c0= interpolate(c00,c10,yfactor);
-        VoxelGradient c1= interpolate(c01,c11,yfactor);
         
-        VoxelGradient c = interpolate(c0,c1,zfactor);
+//        VoxelGradient c000 = new VoxelGradient (x0,y0,z0);
+//        VoxelGradient c001 = new VoxelGradient (x0,y0,z1);
+//        VoxelGradient c010 = new VoxelGradient (x0,y1,z0);
+//        VoxelGradient c011 = new VoxelGradient (x0,y1,z1);
+//        VoxelGradient c100 = new VoxelGradient (x1,y0,z0);
+//        VoxelGradient c101 = new VoxelGradient (x1,y0,z1);
+//        VoxelGradient c110 = new VoxelGradient (x1,y1,z0);
+//        VoxelGradient c111 = new VoxelGradient (x1,y1,z1);
+//        
+        c000= interpolate(c000,c100,xfactor);
+        c001= interpolate(c001,c101,xfactor);
+        c010= interpolate(c010,c110,xfactor);
+        c011= interpolate(c011,c111,xfactor);
+        //VoxelGradient c00= interpolate(c000,c100,xfactor);
+        //VoxelGradient c01= interpolate(c001,c101,xfactor);
+        //VoxelGradient c10= interpolate(c010,c110,xfactor);
+        //VoxelGradient c11= interpolate(c011,c111,xfactor);
+        
+        c000= interpolate(c000,c010,yfactor);
+        c001= interpolate(c001,c011,yfactor);
+        //VoxelGradient c0= interpolate(c00,c10,yfactor);
+        //VoxelGradient c1= interpolate(c01,c11,yfactor);
+        c000 = interpolate(c000,c001,zfactor);
+        //VoxelGradient c = interpolate(c0,c1,zfactor);
         
         //x= c.x;
         //y= c.y;
@@ -119,7 +143,7 @@ public class GradientVolume {
         //int z = (int) Math.floor(coord[2]);
         //System.out.println(getGradient((int)x, (int)y, (int)z).mag);
         //return getGradient((int)x, (int)y, (int)z);
-        return c;
+        return c000;
         // To be impmented right now it impments just a nearest neighbour
     }
     
