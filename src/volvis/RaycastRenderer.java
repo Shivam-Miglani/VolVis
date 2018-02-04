@@ -153,7 +153,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         return computeImageColor(r, g, b, alpha);
     }
 
-
+    //NOTE: Since 'over' operator is associative, we just chose to implement back-to-front compositing randomly.
     int traceRayComposite(double[] entryPoint, double[] exitPoint, double[] rayVector, double sampleStep) {
 
         //the light vector is directed toward the view point (which is the source of the light)
@@ -169,12 +169,11 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         double g = 1.0;
         double b = 0.0;
         double alpha = 0.0;
+        double opacity = 0.0;
 
-        //computing the increment and the number of samples
-        double[] increment = new double[3];
-        increment[0] = rayVector[0] * sampleStep;
-        increment[1] = rayVector[1] * sampleStep;
-        increment[2] = rayVector[2] * sampleStep;
+        //computing the decrement (as we are doing back-to-front compositing) and the number of samples
+        double[] decrement = new double[3];
+        VectorMath.setVector(decrement, -rayVector[0] * sampleStep, -rayVector[1] * sampleStep,-rayVector[2] * sampleStep);
         double[] temp = {entryPoint[0] - exitPoint[0], entryPoint[1] - exitPoint[1], entryPoint[2] - exitPoint[2]};
         double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
         /* visualized using following analogy
@@ -183,64 +182,52 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         int nSamples = 1 + (int) (distance / sampleStep);
 
 
-        //initializing position as entry point for front-to-back compositing.
-        double[] position = {entryPoint[0], entryPoint[1], entryPoint[2]};
+        //initializing position as exit point for back-to-front composting.
+        double[] position = {exitPoint[0], exitPoint[1], exitPoint[2]};
 
         TFColor voxel_color = new TFColor();
         TFColor colorAux = new TFColor();
 
         //iterate over each sample to compute the color
-        for (int i = 0; i < nSamples; i++) {
-            int value = volume.getVoxelLinearInterpolate(position); //get value at current position
-            VoxelGradient gradient = gradients.getGradient(position); //get gradient at the current position
+        for (int i = nSamples; i > 0; i--) {
+            //Gets the value and the gradient in the current position
+            int value = volume.getVoxelLinearInterpolate(position);
+            VoxelGradient gradient = gradients.getGradient(position);
 
             //Updates the color and the opacity based on the current selection
             if (compositingMode) {
                 colorAux = tFunc.getColor(value);
-                voxel_color.r = colorAux.r;
-                voxel_color.g = colorAux.g;
-                voxel_color.b = colorAux.b;
-                voxel_color.a = colorAux.a;
-                alpha = voxel_color.a;
+                voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
+                opacity = voxel_color.a;
             }
             if (tf2dMode) {
                 colorAux = tFunc2D.color;
-                voxel_color.r = colorAux.r;
-                voxel_color.g = colorAux.g;
-                voxel_color.b = colorAux.b;
-                voxel_color.a = colorAux.a;
-                alpha = tFunc2D.color.a;
-                alpha *= computeLevoyOpacity(tFunc2D.baseIntensity, tFunc2D.radius, value, gradient.mag);
+                voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
+                opacity = tFunc2D.color.a;
+                opacity *= computeLevoyOpacity(tFunc2D.baseIntensity,
+                        tFunc2D.radius, value, gradient.mag);
             }
             if (shadingMode) {
-                if (alpha > 0.0) {
-                    colorAux = computeBlinnShading(voxel_color, gradient, lightVector, halfVector); //TODO change to Phong
-                    voxel_color.r = colorAux.r;
-                    voxel_color.g = colorAux.g;
-                    voxel_color.b = colorAux.b;
-                    voxel_color.a = colorAux.a;
+                if (opacity > 0.0) {
+                    colorAux= computeBlinnShading(voxel_color, gradient, lightVector, halfVector);
+                    voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
                 }
             }
 
-            //compute color value in front-to-back fashion.
-            r += voxel_color.a * voxel_color.r * (1.0 - alpha);
-            g += voxel_color.a * voxel_color.g * (1.0 - alpha);
-            b += voxel_color.a * voxel_color.b * (1.0 - alpha);
-            alpha += (1.0 - alpha) * voxel_color.a;
+            // Compute the composition with the back-to-front algorithm
+            r = opacity * voxel_color.r + (1.0 - opacity) * r;
+            g = opacity * voxel_color.g + (1.0 - opacity) * g;
+            b = opacity * voxel_color.b + (1.0 - opacity) * b;
+            alpha = opacity + (1.0 - opacity) * alpha;
 
             //update the current position
             for (int j = 0; j < 3; j++) {
-                position[j] += increment[j];
+                position[j] += decrement[j];
             }
         }
 
         //compute and return the integer value of pixel color.
         return computeImageColor(r, g, b, alpha);
-
-        /*
-        //NOTE: Since 'over' operator is associative, we just chose to implement front-to-back compositing randomly.
-        //Similarly, for back-to-front implementation, the start with exit point and increments would be in opposite direction.
-        //equations of rgb would change a bit. */
 
     }
 
