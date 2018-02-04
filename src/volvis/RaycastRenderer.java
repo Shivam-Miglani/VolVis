@@ -168,8 +168,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         double r = 1.0;
         double g = 1.0;
         double b = 0.0;
-        double alpha = 1.0;
-        double opacity = 0.0;
+        double alpha = 0.0;
 
         //computing the increment and the number of samples
         double[] increment = new double[3];
@@ -180,12 +179,12 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
         /* visualized using following analogy
         |---|---|---|---|
-        need 5 samples for 4 sample step sized divisions*/
+        need 5 samples for 4 sample-step sized divisions*/
         int nSamples = 1 + (int) (distance / sampleStep);
+
 
         //initializing position as entry point for front-to-back compositing.
         double[] position = {entryPoint[0], entryPoint[1], entryPoint[2]};
-        //For back-to-front implementation, the exit point of the ray will be used
 
         TFColor voxel_color = new TFColor();
         TFColor colorAux = new TFColor();
@@ -202,22 +201,20 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                 voxel_color.g = colorAux.g;
                 voxel_color.b = colorAux.b;
                 voxel_color.a = colorAux.a;
-                opacity = voxel_color.a;
+                alpha = voxel_color.a;
             }
-            //I added these after referring to the solution (Let's discuss if it is important)
             if (tf2dMode) {
                 colorAux = tFunc2D.color;
                 voxel_color.r = colorAux.r;
                 voxel_color.g = colorAux.g;
                 voxel_color.b = colorAux.b;
                 voxel_color.a = colorAux.a;
-                opacity = tFunc2D.color.a;
-                opacity *= computeLevoyOpacity(tFunc2D.baseIntensity,
-                        tFunc2D.radius, value, gradient.mag);
+                alpha = tFunc2D.color.a;
+                alpha *= computeLevoyOpacity(tFunc2D.baseIntensity, tFunc2D.radius, value, gradient.mag);
             }
             if (shadingMode) {
-                if (opacity > 0.0) {
-                    colorAux = computeBlinnShading(voxel_color, gradient, lightVector, halfVector);
+                if (alpha > 0.0) {
+                    colorAux = computeBlinnShading(voxel_color, gradient, lightVector, halfVector); //TODO change to Phong
                     voxel_color.r = colorAux.r;
                     voxel_color.g = colorAux.g;
                     voxel_color.b = colorAux.b;
@@ -225,7 +222,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                 }
             }
 
-            //compute color value
+            //compute color value in front-to-back fashion.
             r += voxel_color.a * voxel_color.r * (1.0 - alpha);
             g += voxel_color.a * voxel_color.g * (1.0 - alpha);
             b += voxel_color.a * voxel_color.b * (1.0 - alpha);
@@ -235,12 +232,16 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
             for (int j = 0; j < 3; j++) {
                 position[j] += increment[j];
             }
-            nSamples -= 1;
         }
 
-        //computes the color
-        int color = computeImageColor(r, g, b, alpha);
-        return color;
+        //compute and return the integer value of pixel color.
+        return computeImageColor(r, g, b, alpha);
+
+        /*
+        //NOTE: Since 'over' operator is associative, we just chose to implement front-to-back compositing randomly.
+        //Similarly, for back-to-front implementation, the start with exit point and increments would be in opposite direction.
+        //equations of rgb would change a bit. */
+
     }
 
     void raycast(double[] viewMatrix) {
@@ -567,7 +568,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         return opacity;
     }
 
-    //
+
     private TFColor computeBlinnShading(TFColor voxel_color, VoxelGradient gradient, double[] lightVector,
                                         double[] halfVector) {
 
@@ -598,6 +599,12 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         color.g = color.g > 1.0 ? 1.0 : color.g;
         color.b = color.b > 1.0 ? 1.0 : color.b;
 
+        return color;
+    }
+
+    //TODO
+    TFColor computePhongShading(TFColor voxel_color, VoxelGradient gradient, double[] lightVector, double[] halfVector){
+        TFColor color = new TFColor(voxel_color.r, voxel_color.g, voxel_color.b, voxel_color.a);
         return color;
     }
 
@@ -739,14 +746,13 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         gl.glPushMatrix();
         gl.glLoadIdentity();
         gl.glBegin(GL2.GL_QUADS);
-        gl.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        gl.glTexCoord2d(0.0, 0.0);
+        gl.glTexCoord2d(texture.getImageTexCoords().left(), texture.getImageTexCoords().top());
         gl.glVertex3d(-halfWidth, -halfWidth, 0.0);
-        gl.glTexCoord2d(0.0, 1.0);
+        gl.glTexCoord2d(texture.getImageTexCoords().left(), texture.getImageTexCoords().bottom());
         gl.glVertex3d(-halfWidth, halfWidth, 0.0);
-        gl.glTexCoord2d(1.0, 1.0);
+        gl.glTexCoord2d(texture.getImageTexCoords().right(), texture.getImageTexCoords().bottom());
         gl.glVertex3d(halfWidth, halfWidth, 0.0);
-        gl.glTexCoord2d(1.0, 0.0);
+        gl.glTexCoord2d(texture.getImageTexCoords().right(), texture.getImageTexCoords().top());
         gl.glVertex3d(halfWidth, -halfWidth, 0.0);
         gl.glEnd();
         texture.disable(gl);
