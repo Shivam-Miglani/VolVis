@@ -24,7 +24,7 @@ import volume.VoxelGradient;
 /**
  * @author michel
  *         Edit by Anna Vilanova & Nicola Pezzotti
- *         Modified by Shivam, Sharad and Galib.
+ *         Modified by Shivam, Sharad and Galib. (group 7)
  */
 
 // This is a very important class where you have to implement most of your work
@@ -123,7 +123,10 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         /*Calculating number of samples*/
         double[] temp = {entryPoint[0] - exitPoint[0], entryPoint[1] - exitPoint[1], entryPoint[2] - exitPoint[2]};
         double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
-        int nSamples = (int) (distance / sampleStep);
+        /* visualized using following analogy
+        |---|---|---|---|
+        need 5 samples for 4 sample step sized divisions*/
+        int nSamples = 1 + (int) (distance / sampleStep);
 
         //You need to iterate through the ray. Starting at the entry point.
         //assigning newly found max 'val' in an iteration to 'accumulate'
@@ -175,12 +178,15 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         increment[2] = rayVector[2] * sampleStep;
         double[] temp = {entryPoint[0] - exitPoint[0], entryPoint[1] - exitPoint[1], entryPoint[2] - exitPoint[2]};
         double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
-        int nSamples = 1 + (int) (distance / sampleStep); //TODO: check if addition of 1 is necessary or not
+        /* visualized using following analogy
+        |---|---|---|---|
+        need 5 samples for 4 sample step sized divisions*/
+        int nSamples = 1 + (int) (distance / sampleStep);
 
         //initializing position as entry point for front-to-back compositing.
         double[] position = {entryPoint[0], entryPoint[1], entryPoint[2]};
         //For back-to-front implementation, the exit point of the ray will be used
-        
+
         TFColor voxel_color = new TFColor();
         TFColor colorAux = new TFColor();
 

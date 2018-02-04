@@ -10,7 +10,7 @@ import java.io.IOException;
 /**
  * @author michel
  *         Modified by Anna Vilanova
- *         Modified by Galib, Sharad and Shivam.
+ *         Modified by Galib, Sharad and Shivam. (group 7)
  */
 public class Volume {
 
