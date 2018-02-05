@@ -29,6 +29,24 @@ public class GradientVolume {
         }
 
 
+        // gradient at extremes, 0 and dim-1
+        i = 0;
+        j = 0;
+        k = 0;
+        gx = (volume.data[(i + 1) + (dimX * (j + (dimY * k)))] - volume.data[i + (dimX * (j + (dimY * k)))]) / 1;
+        gy = (volume.data[i + (dimX * ((j + 1) + (dimY * k)))] - volume.data[i + (dimX * (j + (dimY * k)))]) / 1;
+        gz = (volume.data[i + (dimX * (j + (dimY * (k + 1))))] - volume.data[i + (dimX * (j + (dimY * k)))]) / 1;
+        data[i + dimX * (j + dimY * k)] = new VoxelGradient(gx, gy, gz);
+        i = dimX - 1;
+        j = dimY - 1;
+        k = dimZ - 1;
+        gx = (volume.data[i + (dimX * (j + (dimY * k)))] - volume.data[(i - 1) + (dimX * (j + (dimY * k)))]) / 1;
+        gy = (volume.data[i + (dimX * (j + (dimY * k)))] - volume.data[i + (dimX * ((j - 1) + (dimY * k)))]) / 1;
+        gz = (volume.data[i + (dimX * (j + (dimY * k)))] - volume.data[i + (dimX * (j + (dimY * (k - 1))))]) / 1;
+        data[i + dimX * (j + dimY * k)] = new VoxelGradient(gx, gy, gz);
+
+
+        //gradient in non-extreme points
         for (i = 1; i < dimX - 1; i++) {
             for (j = 1; j < dimY - 1; j++) {
                 for (k = 1; k < dimZ - 1; k++) {
@@ -45,25 +63,16 @@ public class GradientVolume {
                 }
             }
         }
-
-        // to be implemented
     }
 
     //You need to implement this function
     //This function linearly interpolates gradient vector g0 and g1 given the factor (t) 
     //the resut is given at result. You can use it to tri-linearly interpolate the gradient
-    private VoxelGradient interpolate(VoxelGradient g0, VoxelGradient g1, float factor) {
-        // to be implemented
-        float x, y, z;
-        VoxelGradient result;
-
-        x = (g0.x * (1 - factor)) + (g1.x * factor);
-        y = (g0.y * (1 - factor)) + (g1.y * factor);
-        z = (g0.z * (1 - factor)) + (g1.z * factor);
-
-        result = new VoxelGradient(x, y, z);
-
-        return result;
+    private void interpolate(VoxelGradient g0, VoxelGradient g1, float factor, VoxelGradient result) {
+        result.x = (g0.x * (1 - factor)) + (g1.x * factor);
+        result.y = (g0.y * (1 - factor)) + (g1.y * factor);
+        result.z = (g0.z * (1 - factor)) + (g1.z * factor);
+        result.mag=(float)Math.sqrt(result.x*result.x+result.y*result.y+result.z*result.z);
     }
 
     // You need to implement this function
@@ -75,16 +84,17 @@ public class GradientVolume {
             return zero;
         }
 
+        /* notice that in this framework we assume that the distance between neighbouring voxels is 1 in all directions*/
         float x = (float) coord[0];
         float y = (float) coord[1];
         float z = (float) coord[2];
 
-        float x0 = (float) Math.floor(x);
-        float y0 = (float) Math.floor(y);
-        float z0 = (float) Math.floor(z);
-        float x1 = (float) Math.ceil(x);
-        float y1 = (float) Math.ceil(y);
-        float z1 = (float) Math.ceil(z);
+        int x0 = (int) Math.floor(coord[0]);
+        int y0 = (int) Math.floor(coord[1]);
+        int z0 = (int) Math.floor(coord[2]);
+        int x1 = (int) Math.ceil(coord[0]);
+        int y1 = (int) Math.ceil(coord[1]);
+        int z1 = (int) Math.ceil(coord[2]);
 
         float xfactor = (x - x0) / (x1 - x0);
         float yfactor = (y - y0) / (y1 - y0);
@@ -102,15 +112,22 @@ public class GradientVolume {
 
         //7 linear interpolations
         //4 in x direction
-        VoxelGradient c00 = interpolate(c000, c100, xfactor);
-        VoxelGradient c01 = interpolate(c001, c101, xfactor);
-        VoxelGradient c10 = interpolate(c010, c110, xfactor);
-        VoxelGradient c11 = interpolate(c011, c111, xfactor);
+        VoxelGradient c00 = new VoxelGradient();
+        VoxelGradient c01 = new VoxelGradient();
+        VoxelGradient c10 = new VoxelGradient();
+        VoxelGradient c11 = new VoxelGradient();
+        interpolate(c000, c100, xfactor, c00);
+        interpolate(c001, c101, xfactor, c01);
+        interpolate(c010, c110, xfactor, c10);
+        interpolate(c011, c111, xfactor, c11);
         //2 in y direction
-        VoxelGradient c0 = interpolate(c00, c10, yfactor);
-        VoxelGradient c1 = interpolate(c01, c11, yfactor);
+        VoxelGradient c0 = new VoxelGradient();
+        VoxelGradient c1 = new VoxelGradient();
+        interpolate(c00, c10, yfactor, c0);
+        interpolate(c01, c11, yfactor, c1);
         //1 in z direction
-        VoxelGradient c = interpolate(c0, c1, zfactor);
+        VoxelGradient c = new VoxelGradient();
+        interpolate(c0, c1, zfactor, c);
 
         return c;
     }

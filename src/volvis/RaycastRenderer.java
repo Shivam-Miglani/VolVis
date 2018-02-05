@@ -108,6 +108,13 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     // To be implemented
     int traceRayMIP(double[] entryPoint, double[] exitPoint, double[] rayVector, double sampleStep, double maxIntensity) {
 
+        //make MIP faster by lowering the resolution of an image.
+        if(lowResFastMode){
+            sampleStep = sampleStep * 4;
+        } else if (interactiveMode){
+            sampleStep = sampleStep * 2;
+        }
+
         // Example color, you have to substitute it by the result of the MIP
         double r = 0;
         double g = 0;
@@ -121,8 +128,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         double[] increment = new double[3];
         VectorMath.setVector(increment, rayVector[0] * sampleStep, rayVector[1] * sampleStep, rayVector[2] * sampleStep);
         /*Calculating number of samples*/
-        double[] temp = {entryPoint[0] - exitPoint[0], entryPoint[1] - exitPoint[1], entryPoint[2] - exitPoint[2]};
-        double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
+        double distance = VectorMath.distance(entryPoint, exitPoint);
         /* visualized using following analogy
         |---|---|---|---|
         need 5 samples for 4 sample step sized divisions*/
@@ -153,90 +159,118 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         return computeImageColor(r, g, b, alpha);
     }
 
-    //NOTE: Since 'over' operator is associative, we just chose to implement back-to-front compositing randomly.
+    //NOTE: Since 'over' operator is associative, we could have chosen any of front-to-back or back-to-front compositing
+    //We chose front-to-back as we can apply EARLY RAY TERMINATION CONDITION and save some computational time.
     int traceRayComposite(double[] entryPoint, double[] exitPoint, double[] rayVector, double sampleStep) {
-
-        //the light vector is directed toward the view point (which is the source of the light)
-        //half vector is used to speed up the phong shading computation see slides
         double[] lightVector = new double[3];
         double[] halfVector = new double[3];
-        getLightVector(lightVector, halfVector, rayVector);
+        //the light vector is directed toward the view point (which is the source of the light)
+        //half vector is used to speed up the phong shading computation see slides
+        getLightVector(lightVector,halfVector,rayVector);
+
 
         // You need to implement the rest of the function for compositing.
 
-        // Example color you have to substitute it by the result of the MIP
-        double r = 1.0;
-        double g = 1.0;
-        double b = 0.0;
-        double alpha = 0.0;
-        double opacity = 0.0;
 
-        //computing the decrement (as we are doing back-to-front compositing) and the number of samples
-        double[] decrement = new double[3];
-        VectorMath.setVector(decrement, -rayVector[0] * sampleStep, -rayVector[1] * sampleStep, -rayVector[2] * sampleStep);
-        double[] temp = {entryPoint[0] - exitPoint[0], entryPoint[1] - exitPoint[1], entryPoint[2] - exitPoint[2]};
-        double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
-        /* visualized using following analogy
-        |---|---|---|---|
-        need 5 samples for 4 sample-step sized divisions*/
-        int nSamples = 1 + (int) (distance / sampleStep);
+        // Optimization: make rendering faster by lowering the resolution of an image.
+        if(lowResFastMode){
+            sampleStep = sampleStep * 4;
+        } else if (interactiveMode){
+            sampleStep = sampleStep * 2;
+        }
 
 
-        //initializing position as exit point for back-to-front composting.
-        double[] position = {exitPoint[0], exitPoint[1], exitPoint[2]};
+        //increment (F2B)
+        double[] increment = new double[3];
+        VectorMath.setVector(increment, rayVector[0] * sampleStep, rayVector[1] * sampleStep, rayVector[2] * sampleStep);
+        //number of samples
+        double distance = VectorMath.distance(entryPoint, exitPoint);
+        int nSamples = 1 + (int) (distance / sampleStep); //number of samples are one more than nrDivisions
+        //initializing position as entry point for front-to-back composting.
+        double[] position = {entryPoint[0], entryPoint[1], entryPoint[2]};
 
-        TFColor voxel_color = new TFColor();
-        TFColor colorAux = new TFColor();
 
-        //iterate over each sample to compute the color
-        for (int i = nSamples; i > 0; i--) {
-            //Gets the value and the gradient in the current position
-            int value = volume.getVoxelLinearInterpolate(position);
-            VoxelGradient gradient = gradients.getGradient(position);
 
-            //Updates the color and the opacity based on the current selection
+        //voxel colors and gradient
+        TFColor voxelColor = new TFColor(0,0,0.0,0.0);
+        TFColor computedColor = new TFColor(0.0,0.0,0.0,0.0);
+
+        //current color
+        double r=0;
+        double g=0;
+        double b=0;
+        double alpha=0;
+        double intensity=0; //current position's intensity value
+        VoxelGradient gradient = new VoxelGradient(); //current position's gradient
+
+
+
+
+        //iterate front to back
+        for (int i = 0; i < nSamples; i++) {
+
+            //*Optimization: Early ray termination - when opacity is close to 1
+            if(voxelColor.a >= 1.00){
+                break;
+            }
+
+
+            intensity = volume.getVoxelLinearInterpolate(position); //intensity value at current position
+            gradient = gradients.getGradient(position); //gradient at current position
+
+
+            //1D transfer function
             if (compositingMode) {
-                colorAux = tFunc.getColor(value);
-                voxel_color.r = colorAux.r;
-                voxel_color.g = colorAux.g;
-                voxel_color.b = colorAux.b;
-                voxel_color.a = colorAux.a;
-                opacity = voxel_color.a;
+                computedColor = tFunc.getColor((int)intensity);
+                r = computedColor.r;
+                g = computedColor.g;
+                b = computedColor.b;
+                alpha = computedColor.a;
             }
+
+
+
+            //2d transfer function - computing Levoy Opacity
             if (tf2dMode) {
-                colorAux = tFunc2D.color;
-                voxel_color.r = colorAux.r;
-                voxel_color.g = colorAux.g;
-                voxel_color.b = colorAux.b;
-                voxel_color.a = colorAux.a;
-                opacity = tFunc2D.color.a;
-                opacity *= computeLevoyOpacity(tFunc2D.baseIntensity,
-                        tFunc2D.radius, value, gradient.mag);
+                computedColor = tFunc2D.color;
+                r = computedColor.r;
+                g = computedColor.g;
+                b = computedColor.b;
+                alpha = computedColor.a;
+                alpha *= computeLevoyOpacity(tFunc2D.baseIntensity, tFunc2D.radius, intensity, gradient.mag);
             }
+
+
+            //Phong Shading
             if (shadingMode) {
-                if (opacity > 0.0) {
-                    colorAux = computePhongShading(voxel_color, gradient, lightVector, halfVector);
-                    voxel_color.r = colorAux.r;
-                    voxel_color.g = colorAux.g;
-                    voxel_color.b = colorAux.b;
-                    voxel_color.a = colorAux.a;
+                if (alpha > 0.0) {
+                    TFColor currcolor = new TFColor(r,g,b,alpha);
+                    computedColor = computePhongShading(currcolor, gradient, lightVector, halfVector);
+                    r = computedColor.r;
+                    g = computedColor.g;
+                    b = computedColor.b;
+                    alpha = computedColor.a;
                 }
             }
 
-            // Compute the composition with the back-to-front algorithm
-            r = opacity * voxel_color.r + (1.0 - opacity) * r;
-            g = opacity * voxel_color.g + (1.0 - opacity) * g;
-            b = opacity * voxel_color.b + (1.0 - opacity) * b;
-            alpha = opacity + (1.0 - opacity) * alpha;
+
+            //front-to-back compositing - we do this instead of B2F as can early terminate
+            voxelColor.r += (1.0 - voxelColor.a) * alpha * r;
+            voxelColor.g += (1.0 - voxelColor.a) * alpha * g;
+            voxelColor.b += (1.0 - voxelColor.a) * alpha * b;
+            voxelColor.a += (1.0 - voxelColor.a) * alpha;
 
             //update the current position
             for (int j = 0; j < 3; j++) {
-                position[j] += decrement[j];
+                position[j] += increment[j];
             }
+
+
         }
 
-        //compute and return the integer value of pixel color.
-        return computeImageColor(r, g, b, alpha);
+        //computes the color
+        int color = computeImageColor(voxelColor.r,voxelColor.g,voxelColor.b,voxelColor.a);
+        return color;
 
     }
 
@@ -294,8 +328,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         }
     }
 
-    public double computeLevoyOpacity(double material_value, double material_r,
-                                      double voxelValue, double gradMagnitude) {
+    public double computeLevoyOpacity(double material_value, double material_r, double voxelValue, double gradMagnitude) {
 
         double opacity = 0.0;
 
@@ -325,36 +358,42 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
     private TFColor computePhongShading(TFColor voxel_color, VoxelGradient gradient, double[] lightVector, double[] halfVector) {
 
-        double kd = 0.7;
-        double ka = 0.1;
-        double ks = 0.2;
+        double kd = 0.7; //diffusion
+        double ka = 0.1; //ambient
+        double ks = 0.2; //specular
         double n = 10;
 
-        double[] grads = new double[3];
-        grads[0] = gradient.x / gradient.mag;
-        grads[1] = gradient.y / gradient.mag;
-        grads[2] = gradient.y / gradient.mag;
-
+        double[] normalVector = new double[3];
+        normalVector[0] = gradient.x / gradient.mag;
+        normalVector[1] = gradient.y / gradient.mag;
+        normalVector[2] = gradient.y / gradient.mag;
         TFColor color = new TFColor(voxel_color.r, voxel_color.g, voxel_color.b, voxel_color.a);
+        //ambient
         color.r += ka;
         color.g += ka;
         color.b += ka;
 
-        double diffuseProperty = VectorMath.dotproduct(grads, lightVector);
-
+        //diffuse
+        double diffuseProperty = VectorMath.dotproduct(normalVector, lightVector);
         color.r += diffuseProperty * kd * color.r;
         color.g += diffuseProperty * kd * color.g;
         color.b += diffuseProperty * kd * color.b;
-
-        double specularProperty = VectorMath.dotproduct(grads, halfVector);
+        //specular
+        double specularProperty = VectorMath.dotproduct(normalVector, halfVector);
 
         color.r += ks * Math.pow(specularProperty, n);
         color.g += ks * Math.pow(specularProperty, n);
         color.b += ks * Math.pow(specularProperty, n);
 
-
         return color;
 
+    }
+
+    private boolean lowResFastMode = false;
+
+    public void setLowResFastMode(boolean lowResFastMode) {
+        this.lowResFastMode = lowResFastMode;
+        changed();
     }
 
 
@@ -374,6 +413,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     private boolean compositingMode = false;
     private boolean tf2dMode = false;
     private boolean shadingMode = false;
+
 
     //Do NOT modify this function
     int computeImageColor(double r, double g, double b, double a) {
