@@ -29,7 +29,7 @@ public class GradientVolume {
         }
 
 
-        //gradient at extremes, 0 and dim-1
+        // gradient at extremes, 0 and dim-1
         i = 0;
         j = 0;
         k = 0;
@@ -72,6 +72,7 @@ public class GradientVolume {
         result.x = (g0.x * (1 - factor)) + (g1.x * factor);
         result.y = (g0.y * (1 - factor)) + (g1.y * factor);
         result.z = (g0.z * (1 - factor)) + (g1.z * factor);
+        result.mag=(float)Math.sqrt(result.x*result.x+result.y*result.y+result.z*result.z);
     }
 
     // You need to implement this function
@@ -95,19 +96,19 @@ public class GradientVolume {
         int y1 = (int) Math.ceil(coord[1]);
         int z1 = (int) Math.ceil(coord[2]);
 
-        float xfactor = (float)(x - x0) / (x1 - x0);
-        float yfactor = (float)(y - y0) / (y1 - y0);
-        float zfactor = (float)(z - z0) / (z1 - z0);
+        float xfactor = (x - x0) / (x1 - x0);
+        float yfactor = (y - y0) / (y1 - y0);
+        float zfactor = (z - z0) / (z1 - z0);
 
         //defining 8 voxel gradiant data-points of a voxel
-        VoxelGradient c000 = getGradient(x0, y0, z0);
-        VoxelGradient c001 = getGradient(x0, y0, z1);
-        VoxelGradient c010 = getGradient(x0, y1, z0);
-        VoxelGradient c011 = getGradient(x0, y1, z1);
-        VoxelGradient c100 = getGradient(x1, y0, z0);
-        VoxelGradient c101 = getGradient(x1, y0, z1);
-        VoxelGradient c110 = getGradient(x1, y1, z0);
-        VoxelGradient c111 = getGradient(x1, y1, z1);
+        VoxelGradient c000 = new VoxelGradient(x0, y0, z0);
+        VoxelGradient c001 = new VoxelGradient(x0, y0, z1);
+        VoxelGradient c010 = new VoxelGradient(x0, y1, z0);
+        VoxelGradient c011 = new VoxelGradient(x0, y1, z1);
+        VoxelGradient c100 = new VoxelGradient(x1, y0, z0);
+        VoxelGradient c101 = new VoxelGradient(x1, y0, z1);
+        VoxelGradient c110 = new VoxelGradient(x1, y1, z0);
+        VoxelGradient c111 = new VoxelGradient(x1, y1, z1);
 
         //7 linear interpolations
         //4 in x direction

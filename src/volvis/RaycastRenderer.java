@@ -195,11 +195,12 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         TFColor voxelColor = new TFColor(0,0,0.0,0.0);
         TFColor computedColor = new TFColor(0.0,0.0,0.0,0.0);
 
+        //current color
         double r=0;
         double g=0;
         double b=0;
         double alpha=0;
-        int intensity=0; //current position's intensity value
+        double intensity=0; //current position's intensity value
         VoxelGradient gradient = new VoxelGradient(); //current position's gradient
 
 
@@ -209,7 +210,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         for (int i = 0; i < nSamples; i++) {
 
             //*Optimization: Early ray termination - when opacity is close to 1
-            if(voxelColor.a >= 0.99){
+            if(voxelColor.a >= 1.00){
                 break;
             }
 
@@ -220,13 +221,11 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
             //1D transfer function
             if (compositingMode) {
-                computedColor = tFunc.getColor(intensity);
+                computedColor = tFunc.getColor((int)intensity);
                 r = computedColor.r;
                 g = computedColor.g;
                 b = computedColor.b;
                 alpha = computedColor.a;
-//                if(alpha>0)
-//                    System.out.println(r+","+g+","+b+","+alpha);
             }
 
 
@@ -245,7 +244,8 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
             //Phong Shading
             if (shadingMode) {
                 if (alpha > 0.0) {
-                    computedColor = computePhongShading(gradient, lightVector, halfVector);
+                    TFColor currcolor = new TFColor(r,g,b,alpha);
+                    computedColor = computePhongShading(currcolor, gradient, lightVector, halfVector);
                     r = computedColor.r;
                     g = computedColor.g;
                     b = computedColor.b;
@@ -269,8 +269,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         }
 
         //computes the color
-        int color = computeImageColor(r,g,b,alpha);
-        System.out.println(color);
+        int color = computeImageColor(voxelColor.r,voxelColor.g,voxelColor.b,voxelColor.a);
         return color;
 
     }
@@ -329,8 +328,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         }
     }
 
-    public double computeLevoyOpacity(double material_value, double material_r,
-                                      double voxelValue, double gradMagnitude) {
+    public double computeLevoyOpacity(double material_value, double material_r, double voxelValue, double gradMagnitude) {
 
         double opacity = 0.0;
 
@@ -358,7 +356,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         return opacity;
     }
 
-    private TFColor computePhongShading(VoxelGradient gradient, double[] lightVector, double[] halfVector) {
+    private TFColor computePhongShading(TFColor voxel_color, VoxelGradient gradient, double[] lightVector, double[] halfVector) {
 
         double kd = 0.7; //diffusion
         double ka = 0.1; //ambient
@@ -369,18 +367,23 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         normalVector[0] = gradient.x / gradient.mag;
         normalVector[1] = gradient.y / gradient.mag;
         normalVector[2] = gradient.y / gradient.mag;
+        TFColor color = new TFColor(voxel_color.r, voxel_color.g, voxel_color.b, voxel_color.a);
+        //ambient
+        color.r += ka;
+        color.g += ka;
+        color.b += ka;
 
+        //diffuse
         double diffuseProperty = VectorMath.dotproduct(normalVector, lightVector);
+        color.r += diffuseProperty * kd * color.r;
+        color.g += diffuseProperty * kd * color.g;
+        color.b += diffuseProperty * kd * color.b;
+        //specular
         double specularProperty = VectorMath.dotproduct(normalVector, halfVector);
 
-        double phongShadingVal = ka + kd * diffuseProperty + ks*Math.pow(specularProperty,n);
-
-        TFColor color = new TFColor();
-        if(phongShadingVal>0) {
-            color.r *= phongShadingVal;
-            color.g *= phongShadingVal;
-            color.b *= phongShadingVal;
-        }
+        color.r += ks * Math.pow(specularProperty, n);
+        color.g += ks * Math.pow(specularProperty, n);
+        color.b += ks * Math.pow(specularProperty, n);
 
         return color;
 
