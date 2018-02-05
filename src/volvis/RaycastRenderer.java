@@ -13,6 +13,7 @@ import gui.TransferFunction2DEditor;
 import gui.TransferFunctionEditor;
 
 import java.awt.image.BufferedImage;
+import java.util.Vector;
 
 import util.TFChangeListener;
 import util.VectorMath;
@@ -173,10 +174,10 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
 
         // Optimization: make rendering faster by lowering the resolution of an image.
-        if(lowResFastMode){
-            sampleStep = sampleStep * 4;
-        } else if (interactiveMode){
+        if (interactiveMode){
             sampleStep = sampleStep * 2;
+        } else if (lowResFastMode){
+            sampleStep = sampleStep * 5;
         }
 
 
@@ -230,7 +231,7 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 
 
 
-            //2d transfer function - computing Levoy Opacity
+            //2d transfer function - computing Levoy Opacity and setting Kniss et al. range for gradients
             if (tf2dMode) {
                 computedColor = tFunc2D.color;
                 r = computedColor.r;
@@ -241,11 +242,15 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
             }
 
 
-            //Phong Shading
-            if (shadingMode) {
+
+            //Phong and blinn Shading
+            if (phongShadingMode || blinnShadingMode) {
                 if (alpha > 0.0) {
                     TFColor currcolor = new TFColor(r,g,b,alpha);
-                    computedColor = computePhongShading(currcolor, gradient, lightVector, halfVector);
+                    if(phongShadingMode)//phong
+                        computedColor = computePhongShading(currcolor, gradient, lightVector, halfVector);
+                    else if (blinnShadingMode) //blin shading
+                        computedColor = computeBlinnShading(currcolor, gradient, lightVector, halfVector);
                     r = computedColor.r;
                     g = computedColor.g;
                     b = computedColor.b;
@@ -253,6 +258,44 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
                 }
             }
 
+
+
+            //gooch Tone shading - extension of basic volume rendering - we tried but it has some error.
+            if(goochMode){
+
+                double kd_cool = 0.5;
+                double kd_warm = 0.5;
+                computedColor = tFunc.getColor((int)intensity);
+
+                if(computedColor.a > 0 ) {
+                    TFColor blue = new TFColor(0, 0, 1, 0.7);
+                    TFColor yellow = new TFColor(1, 1, 0, 0.7);
+                    TFColor cool = new TFColor();
+                    TFColor warm = new TFColor();
+                    //computing diffused colors.
+                    cool.r += blue.r + 0.2 * kd_cool; //0.2 is constant alpha
+                    cool.g += blue.g + 0.2 * kd_cool;
+                    cool.b += blue.b + 0.2 * kd_cool;
+                    warm.r += yellow.r + 0.6 * kd_warm; //0.6 is constant beta
+                    warm.g += yellow.g + 0.6 * kd_warm;
+                    warm.b += yellow.b + 0.6 * kd_warm;
+
+
+                    //normalVector
+                    double[] normalVector = new double[3];
+                    normalVector[0] = gradient.x / gradient.mag;
+                    normalVector[1] = gradient.y / gradient.mag;
+                    normalVector[2] = gradient.y / gradient.mag;
+
+                    //final color is mix of cool and warm.
+                    double diffuseProperty = VectorMath.dotproduct(normalVector, lightVector);
+                    r = ((1.0 + diffuseProperty) / 2.0) * cool.r + ((1.0) - ((1.0 + diffuseProperty) / 2.0)) * warm.r;
+                    g = ((1.0 + diffuseProperty) / 2.0) * cool.g + ((1.0) - ((1.0 + diffuseProperty) / 2.0)) * warm.g;
+                    b = ((1.0 + diffuseProperty) / 2.0) * cool.b + ((1.0) - ((1.0 + diffuseProperty) / 2.0)) * warm.b;
+                    alpha = 0.7;
+                }
+
+            }
 
             //front-to-back compositing - we do this instead of B2F as can early terminate
             voxelColor.r += (1.0 - voxelColor.a) * alpha * r;
@@ -328,32 +371,58 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         }
     }
 
+    //levoy
     public double computeLevoyOpacity(double material_value, double material_r, double voxelValue, double gradMagnitude) {
 
         double opacity = 0.0;
+
+        //kniss et al.  - tried this but triangle functionality was commented out. Hence, used Gooch tone shading
+        /*if (gradMagnitude < 0 || gradMagnitude > 60)
+            opacity =0.0;
+        else*/
 
         if (gradMagnitude == 0.0 && voxelValue == material_value) {
             opacity = 1.0;
         } else if (gradMagnitude > 0.0 && voxelValue - material_r * gradMagnitude <= material_value
                 && material_value <= voxelValue + material_r * gradMagnitude) {
-            //opacity = 1.0 - (1.0/material_r) * Math.abs((material_value - voxelValue)/gradMagnitude);
-            opacity = 1.0 - Math.abs((material_value - voxelValue) / (gradMagnitude * material_r));
+
+            opacity = 1.0 - Math.abs((material_value - voxelValue) / (gradMagnitude * material_r)); //levoy
         }
 
         return opacity;
     }
 
-    //Do NOT modify this function
-    public double computeLevoy(int f_l, int f_h, double voxelValue, double gradMagnitude) {
-        double opacity = 0.0;
+    private TFColor computeBlinnShading(TFColor voxel_color, VoxelGradient gradient, double[] lightVector,
+                                        double[] halfVector) {
+        //similar to phong shading - results are usually dull because it assumes light direction.
+        double diffuse_coefficient = 0.7;
+        double ambient_coefficient = 0.1;
+        double specular_coefficient = 0.2;
+        double specular_power = 10;
 
-        if (f_l <= voxelValue && voxelValue <= f_h) {
-            TFColor c_l = tFunc.getColor(f_l);
-            TFColor c_h = tFunc.getColor(f_h);
-            opacity = gradMagnitude * ((c_h.a * (voxelValue - f_l) / (f_h - f_l)) + (c_l.a * (f_h - voxelValue) / (f_h - f_l)));
+        double[] grad = new double[3];
+        VectorMath.setVector(grad, gradient.x / gradient.mag, gradient.y / gradient.mag, gradient.z / gradient.mag);
+
+        double diffuse = VectorMath.dotproduct(grad, lightVector);
+
+        TFColor color = new TFColor(voxel_color.r, voxel_color.g, voxel_color.b, voxel_color.a);
+
+        if (diffuse > 0) {
+            color.r = voxel_color.r * diffuse * diffuse_coefficient + ambient_coefficient;
+            color.g = voxel_color.g * diffuse * diffuse_coefficient + ambient_coefficient;
+            color.b = voxel_color.b * diffuse * diffuse_coefficient + ambient_coefficient;
         }
+        double specular = VectorMath.dotproduct(grad, halfVector);
+        if (specular > 0) {
+            color.r += specular_coefficient * Math.pow(specular, specular_power);
+            color.g += specular_coefficient * Math.pow(specular, specular_power);
+            color.b += specular_coefficient * Math.pow(specular, specular_power);
+        }
+        color.r = color.r > 1.0 ? 1.0 : color.r;
+        color.g = color.g > 1.0 ? 1.0 : color.g;
+        color.b = color.b > 1.0 ? 1.0 : color.b;
 
-        return opacity;
+        return color;
     }
 
     private TFColor computePhongShading(TFColor voxel_color, VoxelGradient gradient, double[] lightVector, double[] halfVector) {
@@ -412,7 +481,9 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     private boolean slicerMode = true;
     private boolean compositingMode = false;
     private boolean tf2dMode = false;
-    private boolean shadingMode = false;
+    private boolean phongShadingMode = false; //toggle for phong shading
+    private boolean blinnShadingMode = false; //toggle for blinn shading
+    private boolean goochMode = false; //gooch tone shading
 
 
     //Do NOT modify this function
@@ -539,8 +610,19 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
     }
 
     //Do NOT modify this function
-    public void setShadingMode(boolean mode) {
-        shadingMode = mode;
+    public void setPhongShadingMode(boolean mode) {
+        phongShadingMode = mode;
+        changed();
+    }
+
+    //blinn shading option
+    public void setBlinnShadingMode(boolean mode) {
+        blinnShadingMode = mode;
+        changed();
+    }
+
+    public void setGoochShadingMode(boolean mode) {
+        goochMode = mode;
         changed();
     }
 

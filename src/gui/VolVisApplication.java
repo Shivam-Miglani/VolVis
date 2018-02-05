@@ -28,7 +28,7 @@ public class VolVisApplication extends javax.swing.JFrame {
      */
     public VolVisApplication() {
         initComponents();
-        this.setTitle("2IMV20 Volume Visualization");
+        this.setTitle("IN4086-14 Volume Visualization - Group7");
         
         //GLCanvas glPanel = new GLCanvas();
         GLJPanel glPanel = new GLJPanel();

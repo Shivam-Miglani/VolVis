@@ -4,7 +4,6 @@
  */
 package gui;
 
-import java.awt.BorderLayout;
 import volvis.RaycastRenderer;
 
 /**
@@ -47,6 +46,8 @@ public class RaycastRendererPanel extends javax.swing.JPanel {
         compositingButton = new javax.swing.JRadioButton();
         tf2dButton = new javax.swing.JRadioButton();
         shadingCheckbox = new javax.swing.JCheckBox();
+        blinnShadingCheckbox = new javax.swing.JCheckBox();
+        goochShadingCheckbox = new javax.swing.JCheckBox();
 
         jLabel1.setText("Rendering time (ms):");
 
@@ -85,13 +86,26 @@ public class RaycastRendererPanel extends javax.swing.JPanel {
             }
         });
 
-        shadingCheckbox.setText("Volume shading");
+        shadingCheckbox.setText("Phong shading");
         shadingCheckbox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 shadingCheckboxActionPerformed(evt);
             }
         });
 
+        blinnShadingCheckbox.setText("Blinn shading");
+        blinnShadingCheckbox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                blinnShadingCheckboxActionPerformed(evt);
+            }
+        });
+
+        goochShadingCheckbox.setText("Gooch tone shading (tried doesn't work");
+        goochShadingCheckbox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                goochShadingCheckboxActionPerformed(evt);
+            }
+        });
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -108,7 +122,10 @@ public class RaycastRendererPanel extends javax.swing.JPanel {
                         .addComponent(tf2dButton)
                         .addComponent(mipButton)
                         .addComponent(slicerButton)
-                        .addComponent(shadingCheckbox)))
+                        .addComponent(shadingCheckbox)
+                            .addComponent(blinnShadingCheckbox)
+                            .addComponent(goochShadingCheckbox)
+                    ))
                 .addContainerGap(339, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
@@ -128,6 +145,10 @@ public class RaycastRendererPanel extends javax.swing.JPanel {
                 .addComponent(tf2dButton)
                 .addGap(18, 18, 18)
                 .addComponent(shadingCheckbox)
+                    .addGap(18, 18, 18)
+                    .addComponent(blinnShadingCheckbox)
+                    .addGap(18, 18, 18)
+                    .addComponent(goochShadingCheckbox)
                 .addContainerGap(137, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
@@ -149,8 +170,16 @@ public class RaycastRendererPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_tf2dButtonActionPerformed
 
     private void shadingCheckboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_shadingCheckboxActionPerformed
-        renderer.setShadingMode(shadingCheckbox.isSelected());
+        renderer.setPhongShadingMode(shadingCheckbox.isSelected());
     }//GEN-LAST:event_shadingCheckboxActionPerformed
+
+    private void blinnShadingCheckboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_shadingCheckboxActionPerformed
+        renderer.setBlinnShadingMode(blinnShadingCheckbox.isSelected());
+    }
+
+    private void goochShadingCheckboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_shadingCheckboxActionPerformed
+        renderer.setGoochShadingMode(goochShadingCheckbox.isSelected());
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.ButtonGroup buttonGroup1;
@@ -162,4 +191,8 @@ public class RaycastRendererPanel extends javax.swing.JPanel {
     private javax.swing.JRadioButton slicerButton;
     private javax.swing.JRadioButton tf2dButton;
     // End of variables declaration//GEN-END:variables
+
+    private javax.swing.JCheckBox blinnShadingCheckbox;
+    private javax.swing.JCheckBox goochShadingCheckbox;
+
 }
