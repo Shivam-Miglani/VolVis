@@ -85,8 +85,8 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
 	               voxelColor.a = val > 0 ? 1.0 : 0.0;   
                        
 	            // Alternatively, apply the transfer function to obtain a color using the tFunc attribute
-	            colorAux= tFunc.getColor(val);
-                    voxelColor.r=colorAux.r;voxelColor.g=colorAux.g;voxelColor.b=colorAux.b;//voxelColor.a=colorAux.a; 
+	            //colorAux= tFunc.getColor(val);
+                    //voxelColor.r=colorAux.r;voxelColor.g=colorAux.g;voxelColor.b=colorAux.b;//voxelColor.a=colorAux.a; 
                     // You can also simply use voxelColor = tFunc.getColor(val); However then you copy by reference and this means that if you change 
                     // voxelColor you will be actually changing the transfer function
 	            //voxelColor = tFunc.getColor(val);
@@ -164,10 +164,86 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         // You need to implement the rest of the function for compositing.    
 
         // Example color you have to substitute it by the result of the MIP 
-        double r=1;
-        double g=1;
+        double r=0;
+        double g=0;
         double b=0;
-        double alpha=1; 
+        double alpha=0; 
+        double opacity = 0; 
+
+        double[] increment = new double[3];
+        //for back to front
+        increment[0]= -rayVector[0]*sampleStep;
+        increment[1]= -rayVector[1]*sampleStep;
+        increment[2]= -rayVector[2]*sampleStep;
+        
+        //for front to back
+        //increment[0]= rayVector[0]*sampleStep;
+        //increment[1]= rayVector[1]*sampleStep;
+        //increment[2]= rayVector[2]*sampleStep;
+        double [] temp = {entryPoint[0]-exitPoint[0], entryPoint[1]-exitPoint[1], entryPoint[2]-exitPoint[2]};
+        
+        double distance = Math.sqrt(VectorMath.dotproduct(temp, temp));
+        
+        int nSamples = 1 + (int) (distance/sampleStep); //TODO: check if addition of 1 is necessary or not
+        double [] position = {exitPoint[0], exitPoint[1], exitPoint[2]};
+        
+        //double [] position = {entryPoint[0], entryPoint[1], entryPoint[2]}; //using front-to-back algorithm.
+        //For back-to-front implementation, the exit point of the ray will be used
+
+        TFColor voxel_color = new TFColor();
+        TFColor colorAux = new TFColor();
+
+        //iterate over each sample to compute the color
+        for(int i = 0; i< nSamples; i++){
+            int value = volume.getVoxelLinearInterpolate(position); //get value at current position
+            VoxelGradient gradient = gradients.getGradient(position); //get gradient at the current position
+
+            //Updates the color and the opacity based on the current selection
+            if (compositingMode) {
+                colorAux = tFunc.getColor(value);
+                voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
+                opacity = voxel_color.a;    
+            }
+            //I added these after referring to the solution (Let's discuss if it is important)
+            if (tf2dMode) {
+                colorAux = tFunc2D.color;
+                voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
+                opacity = tFunc2D.color.a;            
+                opacity *= computeLevoyOpacity(tFunc2D.baseIntensity, 
+                   tFunc2D.radius, value, gradient.mag);
+            }
+            if (shadingMode) {
+                if (opacity > 0.0) {
+                    //colorAux= computeBlinnShading(voxel_color, gradient, lightVector, halfVector);
+                    colorAux= computePhong(voxel_color, gradient, lightVector, halfVector);
+                    voxel_color.r =colorAux.r;voxel_color.g =colorAux.g;voxel_color.b =colorAux.b;voxel_color.a =colorAux.a;
+                }
+            }
+            
+            //compute color value
+            //if(alpha>0.9{
+            //break;
+            //)
+            
+            //for front to back:
+//            r += voxel_color.a * voxel_color.r * (1.0 - alpha);
+//            g += voxel_color.a * voxel_color.g * (1.0 - alpha);
+//            b += voxel_color.a * voxel_color.b * (1.0 - alpha);
+//            alpha += (1.0-alpha)*voxel_color.a;
+
+
+            //for back to front
+              r= opacity*voxel_color.r + (1 - opacity)*r;
+              g= opacity*voxel_color.g + (1 - opacity)*g;
+              b= opacity*voxel_color.b + (1 - opacity)*b;
+              alpha = opacity + (1- opacity)*alpha;
+
+            //update the current position
+            for (int j = 0; j < 3; j++) {
+                position[j] += increment[j];
+            }
+          
+        }
         
         //computes the color
         int color = computeImageColor(r,g,b,alpha);
@@ -186,6 +262,11 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
         double maxIntensity = (double)volume.getMaximum();
 
         // ray parameters
+        
+        if (interactiveMode){
+            
+        double sampleStep = 3.0;
+        }
         int increment = 1;
         double sampleStep = 1.0;
       
@@ -449,8 +530,93 @@ public class RaycastRenderer extends Renderer implements TFChangeListener {
             }
         }
     }
+    
+     private TFColor computePhong(TFColor voxel_color, VoxelGradient gradient, double[] lightVector,
+            double[] halfVector){
+        
+        double kd = 0.7;
+        double ka = 0.1;
+        double ks = 0.2;
+        double n = 10;
+        
+        double [] grads = new double [3];
+        grads[0]= gradient.x/gradient.mag;
+        grads[1]= gradient.y/gradient.mag;
+        grads[2]= gradient.y/gradient.mag;
+        
+        TFColor color = new TFColor(voxel_color.r, voxel_color.g, voxel_color.b, voxel_color.a);
+        color.r += ka;
+        color.g += ka;
+        color.b += ka;
+        
+        double diffuseProperty = VectorMath.dotproduct(grads, lightVector);
+        
+        color.r += diffuseProperty* kd * color.r;
+        color.g += diffuseProperty* kd * color.g;
+        color.b += diffuseProperty* kd * color.b;
+        
+        double specularProperty = VectorMath.dotproduct(grads, halfVector);
+        
+        color.r += ks * Math.pow(specularProperty, n);
+        color.g += ks * Math.pow(specularProperty, n);
+        color.b += ks * Math.pow(specularProperty, n);
+        
+        
+        return color;
+        
+    }
  
+    //Do NOT modify this function
+    public double computeLevoyOpacity(double material_value, double material_r,
+            double voxelValue, double gradMagnitude) {
+
+        double opacity = 0.0;
+
+        if (gradMagnitude == 0.0 && voxelValue == material_value) {
+            opacity = 1.0;
+        } else if (gradMagnitude > 0.0 && voxelValue - material_r * gradMagnitude <= material_value
+                && material_value <= voxelValue + material_r * gradMagnitude) {
+            //opacity = 1.0 - (1.0/material_r) * Math.abs((material_value - voxelValue)/gradMagnitude);
+            opacity = 1.0 - Math.abs((material_value - voxelValue) / (gradMagnitude * material_r));
+        }
+
+        return opacity;
+    }
+
+    private TFColor computeBlinnShading(TFColor voxel_color, VoxelGradient gradient, double[] lightVector,
+            double[] halfVector) {
+
+        double diffuse_coefficient = 0.7;
+        double ambient_coefficient = 0.1;
+        double specular_coefficient = 0.2;
+        double specular_power = 10;
+
+        double[] grad = new double[3];
+        VectorMath.setVector(grad, gradient.x / gradient.mag, gradient.y / gradient.mag, gradient.z / gradient.mag);
+
+        double diffuse = VectorMath.dotproduct(grad, lightVector);
+        
+        TFColor color = new TFColor(voxel_color.r, voxel_color.g, voxel_color.b, voxel_color.a);
+        
+        if (diffuse > 0) {
+            color.r = voxel_color.r * diffuse * diffuse_coefficient + ambient_coefficient;
+            color.g = voxel_color.g * diffuse * diffuse_coefficient + ambient_coefficient;
+            color.b = voxel_color.b * diffuse * diffuse_coefficient + ambient_coefficient;
+        }
+        double specular = VectorMath.dotproduct(grad, halfVector);
+        if (specular > 0) {
+            color.r += specular_coefficient * Math.pow(specular, specular_power);
+            color.g += specular_coefficient * Math.pow(specular, specular_power);
+            color.b += specular_coefficient * Math.pow(specular, specular_power);
+        }
+        color.r = color.r > 1.0 ? 1.0 : color.r;
+        color.g = color.g > 1.0 ? 1.0 : color.g;
+        color.b = color.b > 1.0 ? 1.0 : color.b;
+        
+        return color;
+    }
   
+
    
     
     //Do NOT modify this function

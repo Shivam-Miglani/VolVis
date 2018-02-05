@@ -47,7 +47,7 @@ public class GradientVolume {
             }
         }
 
-        // to be implemented
+        
     }
     	
     //You need to implement this function
@@ -143,8 +143,9 @@ public class GradientVolume {
         //int z = (int) Math.floor(coord[2]);
         //System.out.println(getGradient((int)x, (int)y, (int)z).mag);
         //return getGradient((int)x, (int)y, (int)z);
+        
+        
         return c000;
-        // To be impmented right now it impments just a nearest neighbour
     }
     
     

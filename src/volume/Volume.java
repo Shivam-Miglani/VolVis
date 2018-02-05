@@ -79,9 +79,6 @@ public class Volume {
         
         float c = interpolate(c0,c1,zfactor);
         
-       
-        // To be implemented
-        
         
         //System.out.println((short)c);
         return (short) c; 
