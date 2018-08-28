@@ -1,2 +1,2 @@
-# VolVis
-Volume Visualization Project - Group 7
+# Volume Visualization of various objects using Java
+
